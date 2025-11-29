@@ -1,0 +1,80 @@
+// types.ts
+export interface Staff {
+  id: string;
+  fullName?: string;
+  classification?: string;
+  email?: string;
+  phoneNumber?: string;
+  age?: number;
+  gender?: string;
+  rfid?: string;
+  adminId?: string;
+  createdAt?: any;
+  
+  // ✅ NEW: Leave balance tracking
+  annualLeaveEntitlement?: number; // Default: 25 days per year
+  leaveBalance?: {
+    year: number; // Current year (e.g., 2025)
+    totalEntitlement: number; // Total days allowed (e.g., 25)
+    used: number; // Days already used (approved leaves)
+    pending: number; // Days in pending requests
+    remaining: number; // Available days
+  };
+}
+
+export interface Schedule {
+  id: string;
+  staffId: string;
+  staffName: string;
+  classification: string;
+  day: string;
+  shift: string;
+  shiftTime: string;
+  status: string;
+  date?: string;
+  createdAt?: any;
+}
+
+export interface WeeklySchedule {
+  [staffId: string]: {
+    staffName: string;
+    classification: string;
+    schedule: {
+      [day: string]: {
+        shift: string;
+        shiftTime: string;
+      };
+    };
+  };
+}
+
+export interface Shift {
+  value: string;
+  label: string;
+}
+
+export interface LeaveRequest {
+  id: string;       
+  staffId: string;
+  fullName: string;
+  classification: string;
+  startDate: string;
+  endDate: string;
+  leaveType: string;
+  notes?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt?: any;
+  updatedAt?: any;
+  
+  // ✅ NEW: Track days for this request
+  totalDays?: number; // Number of days for this leave request
+}
+
+// ✅ NEW: Helper type for leave balance calculation
+export interface LeaveBalanceInfo {
+  totalEntitlement: number;
+  used: number;
+  pending: number;
+  remaining: number;
+  year: number;
+}

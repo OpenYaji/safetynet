@@ -1,0 +1,201 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { CreditCard, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle, MoreHorizontal, ArrowRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { subscribeToInvoices, type InvoiceRecord } from '../../../backend/invoices/invoicesService';
+
+type TransactionStatus = 'completed' | 'pending';
+
+interface DashboardTransaction {
+  id: string;
+  customer: string;
+  room: string;
+  amount: number;
+  status: TransactionStatus;
+  date: string;
+  time: string;
+  type: 'payment' | 'refund';
+  method: string;
+  category: string;
+}
+
+const RecentTransactions: React.FC = () => {
+  const navigate = useNavigate();
+  const [invoiceRecords, setInvoiceRecords] = useState<InvoiceRecord[]>([]);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToInvoices(
+      (records) => {
+        setInvoiceRecords(records);
+      },
+      (error) => {
+        console.error('Error loading invoices for recent transactions:', error);
+      }
+    );
+    return unsubscribe;
+  }, []);
+
+  const recentTransactions = useMemo<DashboardTransaction[]>(() => {
+    if (!invoiceRecords.length) return [];
+
+    const now = new Date();
+
+    const mapped = invoiceRecords
+      .filter((inv) => {
+        const rawStatus = (inv.status || '').toString().toLowerCase();
+        return rawStatus === 'paid' || rawStatus === 'completed' || rawStatus === 'pending';
+      })
+      .map<DashboardTransaction>((inv) => {
+        const rawStatus = (inv.status || '').toString().toLowerCase();
+        const status: TransactionStatus = rawStatus === 'pending' ? 'pending' : 'completed';
+
+        const dateSource = inv.transactionDate || inv.dueDate || (inv.createdAt ? inv.createdAt.toISOString().split('T')[0] : '');
+        const timeSource = inv.transactionTime || (inv.createdAt ? inv.createdAt.toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) : '');
+
+        return {
+          id: inv.id,
+          customer: inv.customerName || 'Guest',
+          room: inv.transactionCategory || 'Room / Service',
+          amount: typeof inv.total === 'number' ? inv.total : 0,
+          status,
+          date: dateSource,
+          time: timeSource,
+          type: 'payment',
+          method: inv.transactionMethod || 'N/A',
+          category: inv.transactionDescription || inv.transactionCategory || 'Hotel Service',
+        };
+      });
+
+    return mapped.slice(0, 5);
+  }, [invoiceRecords]);
+
+  const todayCount = useMemo(() => {
+    if (!recentTransactions.length) return 0;
+    const today = new Date();
+    const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    return recentTransactions.filter((tx) => tx.date === todayKey).length;
+  }, [recentTransactions]);
+
+  return (
+    <div className="overflow-hidden relative bg-white/95 backdrop-blur-2xl rounded-3xl border-white/60 shadow-2xl animate-fade-in min-h-[360px]">
+      {/* Background Elements */}
+      <div className="absolute inset-0 bg-gradient-to-br from-heritage-green/8 via-heritage-light/30 to-heritage-green/5 rounded-3xl opacity-60 group-hover:opacity-100 transition-opacity duration-700"></div>
+      
+      <div className="relative z-10">
+        {/* Header */}
+        <div className="px-8 py-7 border-b bg-gradient-to-r from-white via-slate-50/80 to-white border-gray-200/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-5">
+              <div className="relative group">
+                <div className="p-2 bg-[#82A33D]/10 rounded-xl">
+                  <svg className="w-6 h-6 text-[#82A33D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                </div>
+                <div className="absolute -inset-2 bg-gradient-to-r from-heritage-green/20 to-heritage-neutral/20 rounded-2xl blur-xl opacity-60 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
+              <div>
+                <h3 className="text-2xl font-black bg-gradient-to-r from-gray-900 via-gray-800 to-gray-900 bg-clip-text text-transparent">
+                  Recent Transactions
+                </h3>
+                <div className="flex items-center gap-2 mt-1">
+                  <p className="text-sm font-semibold text-gray-600">Latest payment activities</p>
+                  <div className="w-1 h-1 bg-heritage-green rounded-full"></div>
+                  <span className="text-sm font-bold text-heritage-green">
+                    {todayCount} transaction{todayCount === 1 ? '' : 's'} today
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Transactions List */}
+        <div className="px-8 py-6">
+          <div className="space-y-4">
+            {recentTransactions.map((transaction) => (
+              <div 
+                key={transaction.id} 
+                className="bg-white/80 backdrop-blur-sm p-4 rounded-xl border border-gray-200/50 shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    {/* Transaction Type Icon */}
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                      transaction.type === 'payment' 
+                        ? 'bg-green-100' 
+                        : 'bg-red-100'
+                    }`}>
+                      {transaction.type === 'payment' ? (
+                        <ArrowUpRight className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <ArrowDownLeft className="w-6 h-6 text-red-600" />
+                      )}
+                    </div>
+                    
+                    {/* Transaction Details */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-1">
+                        <h4 className="font-semibold text-gray-900">{transaction.customer}</h4>
+                        <span className="text-sm text-gray-500">•</span>
+                        <span className="text-sm font-medium text-heritage-green">{transaction.room}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-sm text-gray-600">
+                        <span className="px-2 py-1 bg-gray-100 rounded-md text-xs font-medium">
+                          {transaction.category}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {transaction.time}
+                        </span>
+                        <span>{transaction.method}</span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Amount and Status */}
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div className={`text-lg font-bold ${
+                        transaction.type === 'payment' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {transaction.type === 'refund' ? '-' : '+'}₱{transaction.amount.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        {new Date(transaction.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </div>
+                    </div>
+                    
+                    {/* Status Badge */}
+                    <div className="flex items-center gap-3">
+                      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
+                        transaction.status === 'completed' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-yellow-100 text-yellow-700'
+                      }`}>
+                        {transaction.status === 'completed' ? (
+                          <CheckCircle className="w-3 h-3" />
+                        ) : (
+                          <Clock className="w-3 h-3" />
+                        )}
+                        <span className="capitalize">{transaction.status}</span>
+                      </div>
+                      
+                      <button className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-all duration-200">
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RecentTransactions;
