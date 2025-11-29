@@ -1,26 +1,23 @@
 [build]
-  # 1. Go to frontend, install & build
-  # 2. Go to backend, install & build
-  command = "cd frontend && npm install && npm run build && cd ../backend && npm install && npm run build"
+  # 1. Install & Build Frontend (Root)
+  # 2. Go into backend folder -> Install & Build Backend
+  command = "npm install && npm run build && cd backend && npm install && npm run build"
   
-  # Serve the built React files
-  publish = "frontend/dist"
+  # The frontend build output (Vite default is 'dist' in the root)
+  publish = "dist"
   
-  # Where to find the compiled backend functions
+  # The backend build output
   functions = "backend/dist"
 
 [build.environment]
   NODE_VERSION = "20"
+  CI = "false"
 
-# --- Redirects ---
-
-# 1. API Requests: Send /api/* to the backend function
 [[redirects]]
   from = "/api/*"
   to = "/.netlify/functions/api/:splat"
   status = 200
 
-# 2. React Router: Send everything else to index.html (so refresh works)
 [[redirects]]
   from = "/*"
   to = "/index.html"
